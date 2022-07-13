@@ -98,6 +98,8 @@ TEXT_SIZE_NUMBER = 15
 
 PAGE_NUMBER = 10
 
+POSTS_NUMBER = 13
+
 LOGIN_URL = 'users:login'
 
 LOGIN_REDIRECT_URL = 'posts:main_page'
@@ -105,3 +107,5 @@ LOGIN_REDIRECT_URL = 'posts:main_page'
 EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
 
 EMAIL_FILE_PATH = os.path.join(BASE_DIR, 'sent_emails')
+
+CSRF_FAILURE_VIEW = 'core.views.csrf_failure'

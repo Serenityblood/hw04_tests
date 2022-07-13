@@ -24,9 +24,32 @@ class PostModelTest(TestCase):
 
     def test_models_have_correct_objects_name(self):
         """Проверяем что у моделей корректно работает __str__"""
-        group = PostModelTest.group
-        post = PostModelTest.post
-        post_str_exp = post.text[:settings.TEXT_SIZE_NUMBER]
-        group_str_exp = group.title
-        self.assertEqual(post_str_exp, str(post))
-        self.assertEqual(group_str_exp, str(group))
+        model_expected = {
+            self.group: self.group.title,
+            self.post: self.post.text[:settings.TEXT_SIZE_NUMBER]
+        }
+        for model, exp in model_expected.items():
+            with self.subTest(model=model):
+                self.assertEqual(exp, str(model))
+
+    def test_post_verbose_name(self):
+        field_verbose = {
+            'text': 'Текст',
+            'group': 'Группа'
+        }
+        for field, verbose in field_verbose.items():
+            with self.subTest(field=field):
+                self.assertEqual(
+                    self.post._meta.get_field(field).verbose_name, verbose
+                )
+
+    def test_post_help_text(self):
+        field_help_text = {
+            'text': 'Сюда текст',
+            'group': 'Из предложенных :)'
+        }
+        for field, ht in field_help_text.items():
+            with self.subTest(field=field):
+                self.assertEqual(
+                    self.post._meta.get_field(field).help_text, ht
+                )
