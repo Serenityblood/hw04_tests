@@ -35,6 +35,7 @@ class CreatinoFormTest(TestCase):
         self.authorized_client.force_login(self.user)
 
     def test_valid_form_creates_post(self):
+        """Валидная форма создаёт пост"""
         posts_count = Post.objects.count()
         form_data = {
             'text': 'Text form',
@@ -45,16 +46,18 @@ class CreatinoFormTest(TestCase):
             data=form_data,
             follow=True
         )
-        post_created = Post.objects.get(pk=2)
+        post_created = Post.objects.first()
         self.assertEqual(Post.objects.count(), posts_count + 1)
-        self.assertEqual(post_created.text, 'Text form')
-        self.assertEqual(post_created.group.title, 'Test title')
+        self.assertEqual(post_created.text, form_data['text'])
+        self.assertEqual(post_created.group, self.group)
+        self.assertEqual(post_created.author, self.user)
         self.assertRedirects(response, reverse(
             'posts:profile', args=(post_created.author,)
         )
         )
 
     def test_valid_form_edit_post(self):
+        """Валидная форма редактирует пост"""
         post_count = Post.objects.count()
         form_data = {
             'text': 'Text edit',
@@ -67,14 +70,14 @@ class CreatinoFormTest(TestCase):
             data=form_data,
             follow=True
         )
-        post_edit = Post.objects.get(pk=self.post.pk)
+        post_edit = Post.objects.first()
         self.assertRedirects(response, reverse(
             'posts:post_detail', args=(post_edit.pk,)
         )
         )
         self.assertEqual(post_edit.author, self.user)
-        self.assertEqual(post_edit.text, 'Text edit')
-        self.assertEqual(post_edit.group.title, 'Test title edit')
+        self.assertEqual(post_edit.text, form_data['text'])
+        self.assertEqual(post_edit.group, self.group_edit)
         group_response = self.authorized_client.get(
             reverse(
                 'posts:group_posts_page', args=(self.group.slug,)
@@ -88,6 +91,7 @@ class CreatinoFormTest(TestCase):
         self.assertEqual(Post.objects.count(), post_count)
 
     def test_guest_cant_create_post(self):
+        """Гости не могут создавать посты"""
         post_count = Post.objects.count()
         form_data = {
             'text': 'Guest text',

@@ -39,130 +39,75 @@ class PostsURLTests(TestCase):
         self.authorized_client.force_login(self.user)
         self.just_client = Client()
         self.just_client.force_login(self.user2)
+        self.names_args = (
+            ('posts:main_page', None),
+            ('posts:group_posts_page', (self.group.slug,)),
+            ('posts:profile', (self.user.username,)),
+            ('posts:post_detail', (self.post.pk,)),
+            ('posts:post_edit', (self.post.pk,)),
+            ('posts:post_create', None)
+        )
 
     def test_hardcore_urls_names_match(self):
+        """Сравниваем реверс нейм и хардкор URL"""
         name_args_urls = (
             (
                 'posts:main_page',
-                (),
+                None,
                 '/'
             ), (
                 'posts:group_posts_page',
                 (self.group.slug,),
-                '/group/test/'
+                f'/group/{self.group.slug}/'
             ), (
                 'posts:profile',
                 (self.user.username,),
-                '/profile/tester/'
+                f'/profile/{self.user.username}/'
             ), (
                 'posts:post_detail',
                 (self.post.pk,),
-                '/posts/' + str(self.post.pk) + '/'
+                f'/posts/{self.post.pk}/'
             ), (
                 'posts:post_edit',
                 (self.post.pk,),
-                '/posts/' + str(self.post.pk) + '/edit/'
+                f'/posts/{self.post.pk}/edit/'
             ), (
                 'post:post_create',
-                (),
+                None,
                 '/create/'
             )
         )
         for name, arg, url in name_args_urls:
             with self.subTest(url=url):
-                hardcore_response = self.authorized_client.get(url)
-                reverse_response = self.authorized_client.get(
-                    reverse(name, args=arg)
-                )
-                self.assertEqual(
-                    hardcore_response.resolver_match.url_name,
-                    reverse_response.resolver_match.url_name
-                )
+                self.assertEqual(reverse(name, args=arg), url)
 
-    def test_non_authorized_users_URLS(self):
-        names_args = (
-            (
-                'posts:main_page',
-                ()
-            ), (
-                'posts:group_posts_page',
-                (self.group.slug,)
-            ), (
-                'posts:profile',
-                (self.user.username,)
-            ), (
-                'posts:post_detail',
-                (self.post.pk,)
-            ), (
-                'posts:post_edit',
-                (self.post.pk,)
-            ), (
-                'posts:post_create',
-                ()
-            )
-        )
-        for name, arg in names_args:
+    def test_non_authorized_users_urls(self):
+        """Доступ гостей к страницам"""
+        for name, arg in self.names_args:
             with self.subTest(name=name):
                 response = self.client.get(reverse(name, args=arg))
-                if name == 'posts:post_edit' or name == 'posts:post_create':
-                    self.assertEqual(response.status_code, HTTPStatus.FOUND)
+                if name in ('posts:post_edit', 'posts:post_create'):
+                    login = reverse('users:login')
+                    url_name = reverse(name, args=arg)
+                    self.assertRedirects(response, f'{login}?next={url_name}')
                 else:
                     self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_unexsting_page_check(self):
+        """Доступ к несуществующей странице"""
         response = self.client.get('/unexisting_page/')
         self.assertEquals(response.status_code, HTTPStatus.NOT_FOUND)
 
     def test_author_user_urls(self):
-        names_args = (
-            (
-                'posts:main_page',
-                ()
-            ), (
-                'posts:group_posts_page',
-                (self.group.slug,)
-            ), (
-                'posts:profile',
-                (self.user.username,)
-            ), (
-                'posts:post_detail',
-                (self.post.pk,)
-            ), (
-                'posts:post_edit',
-                (self.post.pk,)
-            ), (
-                'posts:post_create',
-                ()
-            )
-        )
-        for name, arg in names_args:
+        """Доступ автора к страницам"""
+        for name, arg in self.names_args:
             with self.subTest(name=name):
                 response = self.authorized_client.get(reverse(name, args=arg))
                 self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    def test_authorized_users_URLS(self):
-        names_args = (
-            (
-                'posts:main_page',
-                ()
-            ), (
-                'posts:group_posts_page',
-                (self.group.slug,)
-            ), (
-                'posts:profile',
-                (self.user.username,)
-            ), (
-                'posts:post_detail',
-                (self.post.pk,)
-            ), (
-                'posts:post_edit',
-                (self.post.pk,)
-            ), (
-                'posts:post_create',
-                ()
-            )
-        )
-        for name, arg in names_args:
+    def test_authorized_users_urls(self):
+        """Доступ авторизванного пользователя к страницам"""
+        for name, arg in self.names_args:
             with self.subTest(name=name):
                 response = self.just_client.get(reverse(name, args=arg))
                 if name == 'posts:post_edit':
@@ -174,10 +119,11 @@ class PostsURLTests(TestCase):
                     self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_template_check(self):
+        """Тест шаблонов и реверснеймов"""
         names_templates = (
             (
                 'posts:main_page',
-                (),
+                None,
                 'posts/index.html'
             ), (
                 'posts:group_posts_page',
@@ -197,7 +143,7 @@ class PostsURLTests(TestCase):
                 'posts/create_post.html'
             ), (
                 'post:post_create',
-                (),
+                None,
                 'posts/create_post.html'
             )
         )

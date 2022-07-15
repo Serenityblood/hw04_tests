@@ -33,6 +33,7 @@ class PostModelTest(TestCase):
                 self.assertEqual(exp, str(model))
 
     def test_post_verbose_name(self):
+        """Проверка verobse_name модели Post"""
         field_verbose = {
             'text': 'Текст',
             'group': 'Группа'
@@ -44,6 +45,7 @@ class PostModelTest(TestCase):
                 )
 
     def test_post_help_text(self):
+        """Проверка help_text модели Post"""
         field_help_text = {
             'text': 'Сюда текст',
             'group': 'Из предложенных :)'
