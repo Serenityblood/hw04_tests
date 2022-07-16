@@ -1,6 +1,10 @@
+import tempfile
+import shutil
+
 from django.contrib.auth import get_user_model
 from django.conf import settings
-from django.test import Client, TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django import forms
 
@@ -9,7 +13,10 @@ from ..forms import PostForm
 
 User = get_user_model()
 
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
+
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostPagesTest(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -20,11 +27,30 @@ class PostPagesTest(TestCase):
             slug='test',
             description='Test description',
         )
+        cls.small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+            b'\x0A\x00\x3B'
+        )
+        cls.uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=cls.small_gif,
+            content_type='image/gif'
+        )
         cls.post = Post.objects.create(
             author=cls.user,
             text='Test text',
             group=cls.group,
+            image=cls.uploaded
         )
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
         self.authorized_client = Client()
@@ -40,7 +66,8 @@ class PostPagesTest(TestCase):
             context_data.text: self.post.text,
             context_data.group: self.post.group,
             context_data.pub_date: self.post.pub_date,
-            context_data.author: self.user
+            context_data.author: self.user,
+            context_data.image: self.post.image
         }
         for value, expected in value_exp.items():
             with self.subTest(value=value):
@@ -60,9 +87,7 @@ class PostPagesTest(TestCase):
             get(reverse('posts:group_posts_page', args=(self.group.slug,)))
         )
         self.pages_tests(response)
-        self.assertEqual(
-            response.context['page_obj'][0].group, self.group
-        )
+        self.assertEqual(response.context['group'], self.group)
 
     def test_profile_contex(self):
         """Проверка контекста страницы профиля"""
@@ -72,7 +97,7 @@ class PostPagesTest(TestCase):
         )
         self.pages_tests(response)
         self.assertEqual(
-            response.context['page_obj'][0].author, self.user
+            response.context['author'], self.user
         )
 
     def test_post_detail_context(self):

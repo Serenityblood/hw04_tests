@@ -49,6 +49,11 @@ class Post(models.Model):
         verbose_name='Группа',
         help_text='Из предложенных :)'
     )
+    image = models.ImageField(
+        'Картинка',
+        upload_to='posts/',
+        blank=True
+    )
 
     class Meta:
         ordering = ('-pub_date',)
@@ -56,4 +61,34 @@ class Post(models.Model):
         verbose_name_plural = 'Посты'
 
     def __str__(self) -> str:
+        return self.text[:settings.TEXT_SIZE_NUMBER]
+
+
+class Comment(models.Model):
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        verbose_name='Пост'
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        verbose_name='Автор'
+    )
+    text = models.TextField(
+        verbose_name='Комментарий',
+        help_text='Сюда комментарий'
+    )
+    created = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Дата комментария'
+    )
+
+    class Meta:
+        verbose_name = 'Комментарий'
+        verbose_name_plural = 'Комментарии'
+
+    def __str__(self):
         return self.text[:settings.TEXT_SIZE_NUMBER]

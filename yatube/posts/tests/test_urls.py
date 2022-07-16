@@ -45,7 +45,8 @@ class PostsURLTests(TestCase):
             ('posts:profile', (self.user.username,)),
             ('posts:post_detail', (self.post.pk,)),
             ('posts:post_edit', (self.post.pk,)),
-            ('posts:post_create', None)
+            ('posts:post_create', None),
+            ('posts:add_comment', (self.post.pk,))
         )
 
     def test_hardcore_urls_names_match(self):
@@ -86,7 +87,9 @@ class PostsURLTests(TestCase):
         for name, arg in self.names_args:
             with self.subTest(name=name):
                 response = self.client.get(reverse(name, args=arg))
-                if name in ('posts:post_edit', 'posts:post_create'):
+                if name in (
+                    'posts:post_edit', 'posts:post_create', 'posts:add_comment'
+                ):
                     login = reverse('users:login')
                     url_name = reverse(name, args=arg)
                     self.assertRedirects(response, f'{login}?next={url_name}')
@@ -103,7 +106,14 @@ class PostsURLTests(TestCase):
         for name, arg in self.names_args:
             with self.subTest(name=name):
                 response = self.authorized_client.get(reverse(name, args=arg))
-                self.assertEqual(response.status_code, HTTPStatus.OK)
+                if name == 'posts:add_comment':
+                    self.assertRedirects(
+                        response, reverse(
+                            'posts:post_detail', args=arg
+                        )
+                    )
+                else:
+                    self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_authorized_users_urls(self):
         """Доступ авторизванного пользователя к страницам"""
@@ -114,6 +124,12 @@ class PostsURLTests(TestCase):
                     self.assertRedirects(response, reverse(
                         'posts:post_detail', args=arg
                     )
+                    )
+                elif name == 'posts:add_comment':
+                    self.assertRedirects(
+                        response, reverse(
+                            'posts:post_detail', args=arg
+                        )
                     )
                 else:
                     self.assertEqual(response.status_code, HTTPStatus.OK)
