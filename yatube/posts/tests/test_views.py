@@ -3,12 +3,13 @@ import shutil
 
 from django.contrib.auth import get_user_model
 from django.conf import settings
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from django import forms
 
-from ..models import Group, Post, User
+from ..models import Follow, Group, Post, User
 from ..forms import PostForm
 
 User = get_user_model()
@@ -53,6 +54,7 @@ class PostPagesTest(TestCase):
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
+        cache.clear()
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
 
@@ -159,6 +161,72 @@ class PostPagesTest(TestCase):
                     with self.subTest(value=value):
                         form_field = response.context['form'].fields[value]
                         self.assertIsInstance(form_field, expected)
+
+    def test_index_cache_works(self):
+        new_post = Post.objects.create(
+            text='text',
+            author=self.user
+        )
+        response = self.authorized_client.get(reverse('posts:main_page'))
+        content_before = response.content
+        new_post.delete()
+        response_2 = self.authorized_client.get(reverse('post:main_page'))
+        content_after = response_2.content
+        self.assertEqual(content_before, content_after)
+
+    def test_auth_user_can_follow_or_unfollow(self):
+        """Работают ли подписки"""
+        user1 = User.objects.create(username='test1')
+        just_client = Client()
+        just_client.force_login(user1)
+        follow_count = Follow.objects.count()
+        self.authorized_client.get(
+            reverse('posts:profile_follow', args=(user1.username,))
+        )
+        self.assertEqual(Follow.objects.count(), follow_count + 1)
+        self.assertEqual(Follow.objects.get(
+            user=self.user, author=user1
+        ).user, self.user)
+        self.assertEqual(Follow.objects.get(
+            user=self.user, author=user1
+        ).author, user1)
+        self.authorized_client.get(
+            reverse('posts:profile_unfollow', args=(user1.username,))
+        )
+        self.assertEqual(Follow.objects.count(), follow_count)
+
+    def test_new_post_appears_on_right_user(self):
+        """Новый пост на нужной странице"""
+        user1 = User.objects.create(username='test1')
+        user2 = User.objects.create(username='test2')
+        just_client = Client()
+        just_client.force_login(user2)
+        Follow.objects.create(
+            user=self.user,
+            author=user1
+        )
+        clients_posts = ((just_client, 0), (self.authorized_client, 0))
+        for man, num in clients_posts:
+            with self.subTest(man=man):
+                response = man.get(
+                    reverse('posts:follow_index')
+                )
+                self.assertEqual(
+                    len(response.context['page_obj'].object_list), num
+                )
+        Post.objects.create(
+            text='test',
+            author=user1
+        )
+        clients_posts = ((just_client, 0), (self.authorized_client, 1))
+        for man, num in clients_posts:
+            with self.subTest(man=man):
+                response = man.get(
+                    reverse('posts:follow_index')
+                )
+                self.assertEqual(
+                    len(response.context['page_obj'].object_list), num
+                )
 
 
 class PaginatorViewsTest(TestCase):
